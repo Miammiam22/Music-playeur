@@ -1,0 +1,16 @@
+[
+  {
+    "id": "2ee582c2",
+    "name": "Nirvana",
+    "artist": "Kurt",
+    "year": "1900",
+    "cover": "assets/covers\\guts from berserk.jpg",
+    "tracks": [
+      "𝐍𝐢𝐫𝐯𝐚𝐧𝐚-𝐇𝐞𝐚𝐫𝐭 𝐒𝐡𝐚𝐩𝐞𝐝 𝐁𝐨𝐱(𝐒𝐥𝐨𝐰𝐞𝐝𝐑𝐞𝐯𝐞𝐫𝐛).mp3",
+      {
+        "name": "Come As You Are (Live).mp3",
+        "path": "C:\\Users\\younl\\Desktop\\music player\\assets\\music\\2ee582c2\\Come As You Are (Live).mp3"
+      }
+    ]
+  }
+]
