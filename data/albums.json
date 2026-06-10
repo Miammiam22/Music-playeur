@@ -12,5 +12,30 @@
         "path": "C:\\Users\\younl\\Desktop\\music player\\assets\\music\\2ee582c2\\Come As You Are (Live).mp3"
       }
     ]
+  },
+  {
+    "id": "a2406179",
+    "name": "FRANCS-TIREURS PARTISANS",
+    "artist": "Femtogo",
+    "year": "2025",
+    "cover": "assets/covers\\francs_tireurs_partisans.jpg",
+    "tracks": [
+      {
+        "name": "UN AUTRE JOUR.mp3",
+        "path": "C:\\Users\\younl\\Desktop\\music player\\assets\\music\\a2406179\\UN AUTRE JOUR.mp3"
+      },
+      {
+        "name": "MME. RIFFAUD.mp3",
+        "path": "C:\\Users\\younl\\Desktop\\music player\\assets\\music\\a2406179\\MME. RIFFAUD.mp3"
+      },
+      {
+        "name": "MACALLAN SPEECH.mp3",
+        "path": "C:\\Users\\younl\\Desktop\\music player\\assets\\music\\a2406179\\MACALLAN SPEECH.mp3"
+      },
+      {
+        "name": "OFF ROAD.mp3",
+        "path": "C:\\Users\\younl\\Desktop\\music player\\assets\\music\\a2406179\\OFF ROAD.mp3"
+      }
+    ]
   }
 ]

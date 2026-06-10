@@ -4,9 +4,10 @@ main.py
 Application Ursina – Bibliothèque d'albums musicaux.
 
 Contrôles :
-  A      → ouvrir la popup « Ajouter un album »
+  A      → ajouter un album
   Échap  → quitter
-  Clic   → sélectionner un album (affiche le bouton + Musiques)
+  Clic pochette → sélectionner / désélectionner
+  Clic re-sélection → désélectionne
 """
 
 from ursina import *
@@ -14,6 +15,7 @@ from ursina.prefabs.button import Button
 import os
 
 from album_library import load_albums, open_add_album_popup, open_add_tracks_popup
+from player import PlayerBar
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  Config grille
@@ -35,19 +37,36 @@ window.color = color._16
 #  État global
 # ─────────────────────────────────────────────────────────────────────────────
 album_cards    = []
-selected_album = None   # dict de l'album actuellement sélectionné
+selected_album = None
+selected_card  = None
 _empty_hint    = None
-_pending       = False  # rebuild grille après ajout album
-_pending_info  = None   # album mis à jour (après ajout tracks)
+_pending       = False
+_pending_info  = None
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Lecteur (barre en bas)
+# ─────────────────────────────────────────────────────────────────────────────
+player_bar = PlayerBar()
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  UI fixe — en-tête
 # ─────────────────────────────────────────────────────────────────────────────
+# Icône logo à gauche du titre (optionnel, si assets/icons/logo.png existe)
+_logo_path = os.path.join('assets', 'icons', 'logo.png')
+if os.path.isfile(_logo_path):
+    Entity(
+        parent   = camera.ui,
+        model    = 'quad',
+        texture  = load_texture(_logo_path),
+        color    = color.white,
+        scale    = .045,
+        position = (-.88, .46),
+    )
 Text(
-    '♫  Album Library',
+    'Album Library',
     parent   = camera.ui,
     origin   = (-.5, .5),
-    position = (-.88, .46),
+    position = (-.83, .46),
     scale    = 1.4,
     color    = color.violet,
 )
@@ -62,26 +81,16 @@ Text(
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  Panneau bas — infos album sélectionné
+#  Bouton « + Musiques » — visible seulement quand album sélectionné
 # ─────────────────────────────────────────────────────────────────────────────
-info_txt = Text(
-    '',
-    parent   = camera.ui,
-    origin   = (0, 0),
-    position = (0, -.42),
-    scale    = .75,
-    color    = color.light_gray,
-)
-
-# Bouton « + Musiques » — caché par défaut, visible quand album sélectionné
 btn_add_tracks = Button(
     parent          = camera.ui,
-    text            = '♪ + Musiques',
-    color           = color.rgb(30, 20, 50) if hasattr(color, 'rgb') else color.dark_gray,
+    text            = '+ Musiques',
+    color           = color.dark_gray,
     highlight_color = color.violet,
     pressed_color   = color.magenta,
-    scale           = 0.16,
-    position        = (.68, -.42),
+    scale           = 0.14,
+    position        = (.74, -.36),
     visible         = False,
 )
 
@@ -105,7 +114,7 @@ def _make_card(album, idx):
     col = idx % COLS
     row = idx // COLS
     x   = START_X + col * GAP_X
-    y   = START_Y  - row * GAP_Y
+    y   = START_Y - row * GAP_Y
 
     tex = _tex(album.get('cover', ''))
 
@@ -132,69 +141,80 @@ def _make_card(album, idx):
     card.album_data = album
 
     def _on_click(a=album, c=card):
-        _select(a, c)
+        _toggle_select(a, c)
     card.on_click = _on_click
 
     return card
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  Sélection d'un album
+#  Sélection / Désélection
 # ─────────────────────────────────────────────────────────────────────────────
-def _select(album, card):
-    global selected_album
+def _deselect():
+    """Désélectionne l'album courant, cache la barre et le bouton musiques."""
+    global selected_album, selected_card
+    for c in album_cards:
+        c.color = color.white if c.texture else color.dark_gray
+    selected_album = None
+    selected_card  = None
+    btn_add_tracks.visible = False
+    player_bar.hide()
 
-    # Réinitialise couleurs
+
+def _toggle_select(album, card):
+    """Sélectionne l'album, ou le désélectionne si déjà sélectionné."""
+    global selected_album, selected_card
+
+    # Déjà sélectionné → désélectionne
+    if selected_album and selected_album.get('id') == album.get('id'):
+        _deselect()
+        return
+
+    # Sélectionne le nouvel album
     for c in album_cards:
         c.color = color.white if c.texture else color.dark_gray
     card.color     = color.violet
     selected_album = album
+    selected_card  = card
 
-    # Infos en bas
-    tracks = album.get('tracks', [])
-    if tracks:
-        # tracks = liste de dicts {"name":..., "path":...} ou strings (ancien format)
-        t_str = '  |  '.join(t['name'] if isinstance(t, dict) else t for t in tracks)
-    else:
-        t_str = '— aucune piste'
-
-    info_txt.text = (
-        f"♪  {album.get('name','?')}   ·   "
-        f"{album.get('artist','?')}   ·   "
-        f"{album.get('year','?')}        "
-        f"Pistes : {t_str}"
-    )
-
-    # Affiche le bouton + Musiques
+    # Bouton + Musiques
     btn_add_tracks.visible = True
 
-    # Branche le callback du bouton sur l'album courant
     def _open_tracks(a=album):
         open_add_tracks_popup(a, on_success=_on_tracks_added)
     btn_add_tracks.on_click = _open_tracks
 
+    # Lecteur : charge l'album et affiche la barre
+    player_bar.load_album(album)
+    player_bar.show()
+
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  Callback ajout de pistes (thread tkinter → update Ursina)
+#  Callbacks thread-safe
 # ─────────────────────────────────────────────────────────────────────────────
+def _on_album_added(album):
+    global _pending
+    _pending = True
+
+
 def _on_tracks_added(updated_album):
-    """Appelé depuis le thread tkinter après import de pistes."""
     global _pending_info
-    _pending_info = updated_album   # traité dans update()
+    _pending_info = updated_album
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  Grille
 # ─────────────────────────────────────────────────────────────────────────────
 def build_grid():
-    global album_cards, _empty_hint, selected_album
+    global album_cards, _empty_hint, selected_album, selected_card
 
     for c in album_cards:
         destroy(c)
     album_cards.clear()
     selected_album = None
-    info_txt.text  = ''
+    selected_card  = None
     btn_add_tracks.visible = False
+    player_bar.hide()
 
     if _empty_hint:
         destroy(_empty_hint)
@@ -218,51 +238,45 @@ def build_grid():
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  Rebuild thread-safe dans update()
+#  update() — chaque frame
 # ─────────────────────────────────────────────────────────────────────────────
-def _on_album_added(album):
-    global _pending
-    _pending = True
-
-
 def update():
     global _pending, _pending_info
 
-    # Nouvel album ajouté → reconstruction complète de la grille
+    # Rebuild grille complet
     if _pending:
         _pending = False
         build_grid()
+        return
 
-    # Pistes ajoutées → met à jour uniquement l'affichage info + la carte concernée
+    # Rafraîchit pistes d'un album sans rebuild
     if _pending_info:
-        updated = _pending_info
+        updated       = _pending_info
         _pending_info = None
-
-        # Rafraîchit le panneau d'info si c'est l'album actuellement sélectionné
+        for c in album_cards:
+            if c.album_data.get('id') == updated.get('id'):
+                c.album_data = updated
+                break
+        # Recharge le lecteur si c'est l'album en cours
         if selected_album and selected_album.get('id') == updated.get('id'):
-            tracks = updated.get('tracks', [])
-            t_str  = '  |  '.join(t['name'] if isinstance(t, dict) else t for t in tracks) if tracks else '— aucune piste'
-            info_txt.text = (
-                f"♪  {updated.get('name','?')}   ·   "
-                f"{updated.get('artist','?')}   ·   "
-                f"{updated.get('year','?')}        "
-                f"Pistes : {t_str}"
-            )
-            # Met à jour la référence locale
-            for c in album_cards:
-                if c.album_data.get('id') == updated.get('id'):
-                    c.album_data = updated
-                    break
+            selected_album = updated
+            player_bar.load_album(updated)
+
+    # Met à jour la barre de lecture chaque frame
+    player_bar.update()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  Input clavier
+#  Input — clavier + clic barre de progression
 # ─────────────────────────────────────────────────────────────────────────────
 def input(key):
     if key == 'a':
         open_add_album_popup(on_success=_on_album_added)
     elif key == 'escape':
         application.quit()
+    elif key == 'left mouse down':
+        # Seek sur la barre de progression
+        player_bar.handle_click(mouse.x, mouse.y)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
